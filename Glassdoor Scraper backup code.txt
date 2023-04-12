@@ -1,0 +1,265 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from shutil import which
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver import ActionChains
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException, ElementNotInteractableException
+import pandas as pd
+import time
+from bs4 import BeautifulSoup
+
+# def getSpan(html_doc):
+#     # Create BeautifulSoup object
+#     soup = BeautifulSoup(html_doc, 'html.parser')
+
+#     # Find all span elements with class 'my-class'
+#     spans = soup.find_all('span', class_='css-1xe2xww e1wijj242')
+
+#     # class="css-1xe2xww e1wijj242"
+
+#     # Print the contents of each span element
+#     for span in spans:
+#         print(span.text)
+
+
+def fetch_jobs(keyword, location, num_pages):
+    options = Options()
+    options.add_argument("window-size=1920,1080")
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    #Enter your chromedriver.exe path below
+    chrome_path = r"C:\Users\000I62744\Documents\GitHub\ds_salary_proj\chromedriver.exe"
+    serv = Service(chrome_path)
+    # driver = webdriver.Chrome(executable_path=chrome_path, options=options)
+    driver = webdriver.Chrome(service=serv, options=options)
+    driver.get("https://www.glassdoor.co.in/Job/index.htm")
+    time.sleep(5)
+    # search_input = driver.find_element_by_id("sc.keyword")  
+    # search_input = driver.find_element("sc.keyword")
+    try:
+        a=ActionChains(driver)
+        time.sleep(1)
+        search_input_keyword = driver.find_element(by="id",value="sc.keyword")
+        time.sleep(1)
+        search_input_keyword.send_keys(keyword)
+
+        time.sleep(1)
+        search_input_location = driver.find_element(by="id",value="sc.location")
+        search_input_location.send_keys("-")
+        a.key_down(Keys.CONTROL).send_keys('A').key_up(Keys.CONTROL).perform()
+        time.sleep(1)
+        # search_input_location.clear()
+        
+        search_input_location.send_keys(location)
+
+        search_input_location.send_keys(Keys.ENTER)
+        # time.sleep(20)
+    except NoSuchElementException:
+                    time.sleep(2)
+                    print("Keyword EXCEPTION OCCURED !!")
+                    pass 
+    
+    html = driver.page_source
+    # getSpan(html)
+
+    company_name = []
+    job_title = []
+    location = []
+    job_description = []
+    salary_estimate = []
+    company_size = []
+    company_type = []
+    company_sector = []
+    company_industry = []
+    company_founded = []
+    company_revenue = []
+
+    #Set current page to 1
+    current_page = 1     
+            
+    time.sleep(3)
+    
+    while current_page <= num_pages:   
+        
+        done = False
+        while not done:
+            job_cards = driver.find_elements("xpath","//article[@id='MainCol']//ul/li[@data-adv-type='GENERAL']")
+            
+            for card in job_cards:
+                card.click()
+                time.sleep(1)
+                card_elements = card.text.split("\n")
+                # print(card_elements)
+                #Closes the signup prompt
+                try:
+                    # driver.find_elements("xpath",".//span[@class='SVGInline modal_closeIcon']")[0].click()
+                    driver.find_element("xpath",".//span[@class='SVGInline modal_closeIcon']").click()
+                    print(driver.find_element("xpath",".//span[@class='SVGInline modal_closeIcon']"))
+                    print("Closes signup")
+                    time.sleep(2)
+                except NoSuchElementException:
+                    time.sleep(2)
+                    pass
+
+                #Expands the Description section by clicking on Show More
+                try:
+                    driver.find_elements("xpath","//div[@class='css-t3xrds e856ufb4']")[0].click()
+                    # print("Description section")
+                    # print(driver.find_elements("xpath","//div[@class='css-t3xrds e856ufb4']"))
+                    time.sleep(1)
+                except NoSuchElementException:
+                    card.click()
+                    print(str(current_page) + '#ERROR: no such element')
+                    time.sleep(30)
+                    driver.find_elements("xpath","//div[@class='css-t3xrds e856ufb4']")[0].click()
+                except ElementNotInteractableException:
+                    card.click()
+                    driver.implicitly_wait(30)
+                    print(str(current_page) + '#ERROR: not interactable')
+                    driver.find_elements("xpath","//div[@class='css-t3xrds e856ufb4']")[0].click()
+
+                # Scrape 
+
+                try:
+                    # print("SCRAPING SECTION")
+                    # if driver.find_element("xpath","//div[@class='css-87uc0g e1tk4kwz1']"):
+                    #     print ("TRUE")
+                    cn = driver.find_element("xpath","//div[@class='css-87uc0g e1tk4kwz1']").text
+                    company_name.append(cn)
+                    
+                    # print("Company Name : ",cn)
+                except:
+                    # print("Company Name : #N/A")
+                    company_name.append("#N/A")
+                    pass
+
+                try:
+                    jt = driver.find_element("xpath","//div[@class='css-1vg6q84 e1tk4kwz4']").text
+                    job_title.append(jt)
+                    # print("Job Title : ",jt)
+                except:
+                    # print("Job Title : #N/A")
+                    job_title.append("#N/A")
+                    pass
+
+                try:
+                    loc = driver.find_element("xpath","//div[@class='css-56kyx5 e1tk4kwz5']").text
+                    location.append(loc)
+                    # print("Job Location : ",loc)
+                except:
+                    # print("Job Title : #N/A")
+                    location.append("#N/A")
+                    pass
+
+                try:
+                    jd = driver.find_element("xpath","//div[@class='jobDescriptionContent desc']").text
+                    job_description.append(jd)
+                    # print("Job Description : ",jd)
+                except:
+                    # print("Job Description : #N/A")
+                    job_description.append("#N/A")
+                    pass
+
+                try:
+                    # salary_estimate.append(driver.find_element("xpath","//div[@class='css-1xe2xww e1wijj242']").text)
+# WILL HAVE TO CHECK SALARY ESTIMATE ELEMENT IN HTML
+                    # salary_estimate.append(driver.find_element("xpath","//span[@class='css-1xe2xww e1wijj242']").text)
+                    # p = driver.find_element("xpath",".//span[@class='css-1xe2xww e1wijj242']").text
+                    # # salary_estimate.append(driver.find_element("xpath","//div[@class='css-3g3psg pr-xxsm']").text)
+                    # soup = BeautifulSoup(html, 'html.parser')
+                    # s = soup.find('span', class_='css-1xe2xww e1wijj242').text
+                    # salary_estimate.append(driver.find_element("xpath","//div").text)
+                    # print("Salary Estimate includes : ", m )
+                    #m=card.text.split("\n")[-2]
+                    se = "#N/A"
+                    for element in card_elements:
+                        if '\u20B9' in element:
+                            se = element
+                            break
+                    # print("Salary Estimate : ",se)    
+                    salary_estimate.append(se)
+                    # print(salary_estimate)
+                except:
+                    salary_estimate.append("#N/A")
+                    # print("Salary Estimate Exception occured :/")
+                    pass
+                
+                try:
+                    cs = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Size']//following-sibling::*").text
+                    company_size.append(cs)
+                    # print("Company Size : ",cs)
+                except:
+                    # print("Company Size : #N/A")
+                    company_size.append("#N/A")
+                    pass
+                
+                try:
+                    ct = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Type']//following-sibling::*").text
+                    company_type.append(ct)
+                    # print("Company Type : ",ct)
+                except:
+                    # print("Company Type : #N/A")
+                    company_type.append("#N/A")
+                    pass
+                    
+                try:
+                    csect = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Sector']//following-sibling::*").text
+                    # csect = driver.find_element("xpath","//div[@id='EmpBasicInfo']//span[text()='Sector']//following-sibling::*").text
+                    company_sector.append(csect)
+                    # print("Company Sector : ",csect)
+                except:
+                    # print("Company Sector : EXCEPTION")
+                    company_sector.append("#N/A")
+                    pass
+                    
+                try:
+                    ci = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Industry']//following-sibling::*").text
+                    company_industry.append(ci)
+                    # print("Company Industry : ",ci)
+                except:
+                    # print("Company Industry : #N/A")
+                    company_industry.append("#N/A")
+                    pass
+                    
+                try:
+                    cf = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Founded']//following-sibling::*").text
+                    company_founded.append(cf)
+                    # print("Company Founded : ",cf)
+                except:
+                    # print("Company Founded : #N/A")
+                    company_founded.append("#N/A")
+                    pass
+                    
+                try:
+                    cr = driver.find_element("xpath","//div[@id='CompanyContainer']//span[text()='Revenue']//following-sibling::*").text
+                    company_revenue.append(cr)
+                    # print("Company Revenue : ",cr)
+                except:
+                    # print("Company Revenue : #N/A")
+                    company_revenue.append("#N/A")
+                    pass                
+                                        
+                done = True
+                
+       # Moves to the next page         
+        if done:
+            print(str(current_page) + ' ' + 'out of' +' '+ str(num_pages) + ' ' + 'pages done')
+            driver.find_element("xpath","//span[@alt='next-icon']").click()   
+            current_page = current_page + 1
+            time.sleep(4)        
+    print("About to close driver")
+    driver.close()
+    df = pd.DataFrame({'company': company_name, 
+    'job title': job_title,
+    'location': location,
+    'job description': job_description,
+    'salary estimate': salary_estimate,
+    'company_size': company_size,
+    'company_type': company_type,
+    'company_sector': company_sector,
+    'company_industry' : company_industry, 'company_founded' : company_founded, 'company_revenue': company_revenue})
+    
+    print("Updated Dataframe: ",df)
+    df.to_csv(keyword + '.csv')
+
+fetch_jobs("Data Science","India",3)
